@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Egy márka (pl. "Pretty Love", "Toyz4lovers") — ide kerül a márkánkénti szorzó
+model Brand {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  // Ezzel a szorzóval szorozzuk be a beszerzési árat (EUR->HUF átváltás után)
+  markup   Float     @default(2.0)
+  products Product[]
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  // Eredeti (lengyel) kategórianév a feedből
+  sourceName    String     @unique
+  // Magyar, megjelenített név
+  nameHu        String
+  slug          String     @unique
+  products      Product[]
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  sku           String    @unique
+  ean           String?
+  brandId       String
+  brand         Brand     @relation(fields: [brandId], references: [id])
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+
+  // Eredeti adatok a feedből
+  nameSource    String
+  descriptionSource String? @db.Text
+
+  // Fordított / megjelenített adatok
+  nameHu        String
+  descriptionHu String?   @db.Text
+  slug          String    @unique
+
+  // Árazás
+  purchasePriceEur Float   // beszerzési ár EUR-ban a feedből
+  priceHuf         Int     // kiszámolt bruttó végár HUF-ban
+
+  weightKg      Float?
+  images        ProductImage[]
+
+  // Készlet / minőség jelzők
+  inStock       Boolean   @default(true)
+  isPublished   Boolean   @default(true)
+  // true, ha hiányos adat/kép miatt admin figyelmet igényel
+  needsReview   Boolean   @default(false)
+  reviewNote    String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orderItems    OrderItem[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  url       String
+  position  Int      @default(0)
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  base      String   // "EUR"
+  target    String   // "HUF"
+  rate      Float
+  fetchedAt DateTime @default(now())
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  email           String
+  phone           String
+  // Számlázási és szállítási adatok
+  billingName     String
+  billingAddress  String
+  shippingMethod  String      // "gls_box" | "gls_home"
+  shippingAddress String
+  // Rendeléskori ÁSZF-elfogadás időbélyege (jogi bizonyíték)
+  aszfAcceptedAt  DateTime
+  status          String      @default("pending") // pending | paid | shipped | cancelled
+  stripeSessionId String?     @unique
+  totalHuf        Int
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPriceHuf Int
+}

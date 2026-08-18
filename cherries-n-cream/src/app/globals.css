@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Fraunces", serif;
+  --font-body: "Manrope", sans-serif;
+}
+
+body {
+  @apply bg-plum text-cream font-body;
+}
+
+::selection {
+  @apply bg-cherry text-cream;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid theme("colors.blush");
+  outline-offset: 2px;
+}
